@@ -1,15 +1,18 @@
-# Backup Script for MyProject
+# ===========================
+# 🔄 Automated Backup Script
+# ===========================
 
 # ======= CONFIGURATION =======
 $ProjectName = "MyProject"
-$ProjectDir = "C:\Users\Deadpool\backups\MyProject"  # my folder path
+$ProjectDir = "C:\Users\Deadpool\backups\MyProject"  # Folder to backup
 $BackupDir = "$HOME\backups\$ProjectName"
 $KeepDaily = 7
-$WebhookUrl = "https://webhook.site/970de43b-663a-4263-b930-053763d896b6" # my webhook url
-$SendNotification = $false # Change to $true if you want to send webhook notifications
+$WebhookUrl = "https://webhook.site/970de43b-663a-4263-b930-053763d896b6"  # Your webhook
+$SendNotification = $false  # Set $true to enable webhook notifications
+$RclonePath = "gdrive:$ProjectName"  # rclone remote path (e.g., gdrive:MyProject)
 # ==============================
 
-# Create backup directory if not exists
+# Create backup directory if it doesn't exist
 if (-not (Test-Path -Path $BackupDir)) {
     New-Item -ItemType Directory -Path $BackupDir | Out-Null
 }
@@ -19,7 +22,7 @@ $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $ZipName = "$ProjectName" + "_" + $Timestamp + ".zip"
 $ZipPath = Join-Path $BackupDir $ZipName
 
-# Compress the project directory into zip
+# Compress the project directory into a zip
 Compress-Archive -Path $ProjectDir -DestinationPath $ZipPath -Force
 
 # Remove old backups, keep only $KeepDaily most recent backups
@@ -31,7 +34,11 @@ if ($Backups.Count -gt $KeepDaily) {
     }
 }
 
-# Send notification if enabled
+# Upload to Google Drive using rclone
+Write-Host "☁️ Uploading $ZipName to Google Drive..."
+rclone copyto $ZipPath "$RclonePath/$ZipName" --quiet
+
+# Send webhook notification if enabled
 if ($SendNotification -and $WebhookUrl) {
     $body = @{
         project = $ProjectName
@@ -42,4 +49,6 @@ if ($SendNotification -and $WebhookUrl) {
     Invoke-RestMethod -Uri $WebhookUrl -Method Post -ContentType "application/json" -Body $body
 }
 
+# Final status message
 Write-Host "✅ Backup Completed: $ZipPath"
+
